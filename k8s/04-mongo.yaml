@@ -1,0 +1,83 @@
+# In-cluster MongoDB for the budget/test path - swap for AWS DocumentDB later
+# (see DEPLOY.md) by removing this file and pointing MONGO_URL in the secret
+# at your DocumentDB cluster endpoint instead. Uses a PersistentVolumeClaim
+# (backed by EBS via the EKS default StorageClass) so chat data survives pod
+# restarts, but there's no automated backup/failover here - fine for testing,
+# not a substitute for a managed database in real production.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: athe-mongo
+  namespace: athe-chat
+  labels:
+    app: athe-mongo
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: athe-mongo
+  template:
+    metadata:
+      labels:
+        app: athe-mongo
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          ports:
+            - containerPort: 27017
+              name: mongo
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: mongo-data
+          persistentVolumeClaim:
+            claimName: athe-mongo-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: athe-mongo-pvc
+  namespace: athe-chat
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: athe-mongo
+  namespace: athe-chat
+spec:
+  selector:
+    app: athe-mongo
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: 27017
+  type: ClusterIP

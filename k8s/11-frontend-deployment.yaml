@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: athe-frontend
+  namespace: athe-chat
+  labels:
+    app: athe-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: athe-frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: athe-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: 077024820219.dkr.ecr.ap-south-1.amazonaws.com/athe-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          # REACT_APP_BACKEND_URL here is written into env-config.js by
+          # docker-entrypoint.sh at container start and read at runtime by the
+          # React app (see frontend/src/lib/config.js) - so the same image
+          # works unchanged across dev/staging/prod.
+          envFrom:
+            - configMapRef:
+                name: athe-frontend-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+      terminationGracePeriodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: athe-frontend
+  namespace: athe-chat
+spec:
+  selector:
+    app: athe-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: athe-frontend-pdb
+  namespace: athe-chat
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: athe-frontend
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: athe-frontend-hpa
+  namespace: athe-chat
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: athe-frontend
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

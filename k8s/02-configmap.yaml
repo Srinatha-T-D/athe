@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: athe-backend-config
+  namespace: athe-chat
+data:
+  JWT_ALGORITHM: "HS256"
+  WEB_CONCURRENCY: "2"
+  # Comma-separated list, no wildcard - update to your real domain(s)
+  CORS_ORIGINS: "https://athe.space"
+  # Media uploads (images/gifs/audio). Leave S3_BUCKET unset to use local-disk
+  # storage instead (fine for docker-compose testing, NOT for k8s - pod disk
+  # is ephemeral and multi-replica, so uploads would only be visible from
+  # whichever pod received them). Set both before going live on k8s/AWS.
+  S3_BUCKET: "athe-chat-media"
+  AWS_REGION: "ap-south-1"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: athe-frontend-config
+  namespace: athe-chat
+data:
+  # Public URL of the backend Service, reachable from the browser (through the Ingress/ALB)
+  REACT_APP_BACKEND_URL: "https://athe.space"

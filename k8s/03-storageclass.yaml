@@ -1,0 +1,16 @@
+# Newer Kubernetes versions removed the built-in AWS EBS provisioner, so EKS
+# needs the EBS CSI driver addon installed (see DEPLOY.md / walkthrough) plus
+# a StorageClass marked default - PVCs with no storageClassName (like
+# athe-mongo-pvc in 04-mongo.yaml) use whichever StorageClass has this
+# annotation.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+parameters:
+  type: gp3

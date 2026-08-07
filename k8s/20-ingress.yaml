@@ -1,0 +1,70 @@
+# Requires the AWS Load Balancer Controller installed in the cluster
+# (see DEPLOY.md step 4). Both Ingress objects below share one ALB via
+# group.name - group.order controls rule priority (lower = evaluated first),
+# which is why /api/* (backend) must be listed before / (frontend).
+#
+# Before applying: replace <ACM_CERT_ARN> and the host, and create a Route53
+# record (or alias) pointing your domain at the ALB's DNS name once it exists
+# (`kubectl get ingress -n athe-chat` after apply).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: athe-backend-ingress
+  namespace: athe-chat
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: athe-chat
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:077024820219:certificate/427f2e9b-def4-43a7-a4fd-2deb41e37db7
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    # WebSocket connections are long-lived; raise the ALB idle timeout well
+    # past the default 60s so idle-but-open chat connections aren't dropped.
+    # (heartbeat POSTs from the client cover REST session liveness, this
+    # covers the persistent WS TCP connection itself.)
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
+spec:
+  rules:
+    - host: athe.space
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: athe-backend
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: athe-frontend-ingress
+  namespace: athe-chat
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: athe-chat
+    alb.ingress.kubernetes.io/group.order: "20"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:077024820219:certificate/427f2e9b-def4-43a7-a4fd-2deb41e37db7
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+spec:
+  rules:
+    - host: athe.space
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: athe-frontend
+                port:
+                  number: 80

@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: athe-chat
+
+resources:
+  - 00-namespace.yaml
+  - 01-secret.yaml
+  - 02-configmap.yaml
+  - 03-storageclass.yaml
+  - 04-mongo.yaml   # budget path: in-cluster Mongo. Remove once on DocumentDB.
+  - 05-redis.yaml   # budget path: in-cluster Redis. Remove once on ElastiCache.
+  - 10-backend-deployment.yaml
+  - 11-frontend-deployment.yaml
+  # Ingress is applied separately, after the ALB Controller is installed -
+  # see DEPLOY.md / the guided walkthrough. Once you have a domain + ACM
+  # cert, switch from 20-ingress-budget.yaml to 20-ingress.yaml.

@@ -1,0 +1,75 @@
+# Optional in-cluster Redis for the WebSocket pub/sub fan-out (see backend/server.py).
+#
+# For production on AWS, prefer a managed AWS ElastiCache for Redis
+# replication group instead of this manifest - it gives you Multi-AZ
+# failover, automatic patching, and encryption at rest/in-transit, and you
+# just point REDIS_URL (in k8s/01-secret.yaml) at its primary endpoint.
+#
+# This manifest exists so the stack is fully self-contained for a quick EKS
+# test-drive or a staging namespace before ElastiCache is provisioned. It is
+# a single replica with no persistence: acceptable because pub/sub messages
+# are transient (a pod restart only affects in-flight delivery, not stored
+# chat history, which lives in MongoDB/DocumentDB).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: athe-redis
+  namespace: athe-chat
+  labels:
+    app: athe-redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: athe-redis
+  template:
+    metadata:
+      labels:
+        app: athe-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: ["--save", "", "--appendonly", "no"]
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: athe-redis
+  namespace: athe-chat
+spec:
+  selector:
+    app: athe-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP

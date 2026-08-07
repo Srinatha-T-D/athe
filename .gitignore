@@ -1,0 +1,60 @@
+# IDE and editors
+.idea/
+.vscode/
+.DS_Store
+
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Testing / coverage
+/coverage
+
+# Production builds
+/build
+/dist
+
+# Environment files - never commit real secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dump.rdb
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Kubernetes - real secret manifests must never be committed.
+# Only *.example.yaml files (with placeholder values) are tracked.
+k8s/01-secret.yaml
+k8s/*-secret.yaml
+!k8s/*.example.yaml
+
+# Emergent.sh scaffold artifacts (no longer used)
+.emergent/
+
+# Build caches
+.cache/
+media_uploads/
+
+# AWS CLI scratch files (not part of the app)
+*.json

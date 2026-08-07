@@ -1,0 +1,56 @@
+# Budget-path Ingress: no domain/ACM cert yet, so this serves plain HTTP over
+# the ALB's own auto-generated DNS name (e.g. k8s-athechat-xxxx.ap-south-1.elb.amazonaws.com).
+# One ALB shared by both rules (grouped via group.name) instead of two
+# separate LoadBalancer Services, which would cost roughly double.
+#
+# When you're ready for a real domain + HTTPS, swap this file for
+# k8s/20-ingress.yaml (already in this repo) and point a Route53 record at
+# the resulting ALB.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: athe-backend-ingress
+  namespace: athe-chat
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: athe-chat
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: athe-backend
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: athe-frontend-ingress
+  namespace: athe-chat
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: athe-chat
+    alb.ingress.kubernetes.io/group.order: "20"
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: athe-frontend
+                port:
+                  number: 80

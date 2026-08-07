@@ -1,0 +1,66 @@
+# Local development / smoke-testing stack. NOT used for production (see k8s/).
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: athe
+      MONGO_INITDB_ROOT_PASSWORD: athe_dev_password
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      MONGO_URL: mongodb://athe:athe_dev_password@mongo:27017/?authSource=admin
+      DB_NAME: athe_chat
+      JWT_SECRET: local_dev_secret_change_me
+      JWT_ALGORITHM: HS256
+      CORS_ORIGINS: http://localhost:3000
+      WEB_CONCURRENCY: "2"
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_BACKEND_URL: http://localhost:8000
+    restart: unless-stopped
+    environment:
+      REACT_APP_BACKEND_URL: http://localhost:8000
+    ports:
+      - "3000:8080"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
