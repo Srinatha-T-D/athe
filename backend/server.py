@@ -3,7 +3,6 @@ from fastapi import (
     APIRouter,
     WebSocket,
     WebSocketDisconnect,
-    Depends,
     HTTPException,
     Query,
     Header,
@@ -11,7 +10,6 @@ from fastapi import (
     File,
     Request,
 )
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -19,8 +17,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel
+from typing import Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 import json
